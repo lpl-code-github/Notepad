@@ -41,8 +41,6 @@ import okio.BufferedSink;
 
 public class RecordActivity extends AppCompatActivity implements View.OnClickListener {
 
-    public static final MediaType JSON
-            = MediaType.get("application/json; charset=utf-8");
     ImageView note_back;
     TextView note_time;
     EditText content;
@@ -90,129 +88,69 @@ public class RecordActivity extends AppCompatActivity implements View.OnClickLis
     @Override
     public void onClick(View v) {
         switch (v.getId()) {
-            case R.id.note_back://后退按钮
-                finish();
-                break;
-            case R.id.delete://清空按钮
-                content.setText("");
-                break;
-            case R.id.note_save:
-                db = mSQLiteHelper.getWritableDatabase();
-                //获取输入内容
-                String noteContent = content.getText().toString().trim();
+        case R.id.note_back:// 后退按钮
+            finish();
+            break;
+        case R.id.delete:// 清空按钮
+            content.setText("");
+            break;
+        case R.id.note_save:
+            // db = mSQLiteHelper.getWritableDatabase();
+            // 获取输入内容
+            String noteContent = content.getText().toString().trim();
+            NotepadBean notepadBean = new NotepadBean();
+            notepadBean.setId(id);
+            notepadBean.setNotepadContent(noteContent);
+            notepadBean.setNotepadTime(DBUtils.getTime());
 
-                //向数据库中添加内容
-                if (id != null) {
-                    if (noteContent.length() > 0) {
-                        NotepadBean notepadBean = new NotepadBean();
-                        notepadBean.setId(id);
-                        notepadBean.setNotepadContent(noteContent);
-                        notepadBean.setNotepadTime(DBUtils.getTime());
-                        httpUpdate(notepadBean);
-                        showToast("修改成功");
-                        setResult(2);
-                        finish();
-//                        if (mSQLiteHelper.updateData(id, noteContent, DBUtils.getTime(), db)) {
-//                            showToast("修改成功");
-//                            setResult(2);
-//                            finish();
-//                        } else {
-//                            showToast("修改失败");
-//                        }
-                    } else {
-                        showToast("修改内容不能为空");
-                    }
-                } else { //添加记录界面的保存操作
-                    //向数据库中添加数据
-                    if (noteContent.length() > 0) {
-                        NotepadBean notepadBean = new NotepadBean();
-                        notepadBean.setId(id);
-                        notepadBean.setNotepadContent(noteContent);
-                        notepadBean.setNotepadTime(DBUtils.getTime());
-                        httpAdd(notepadBean);
-                        showToast("保存成功");
-                        setResult(2);
-                        finish();
-                        //这里暂时不知道如何拿到异步线程的响应的值
-                        //而且子线程修改全局变量似乎需使用消息传递
-//                        if (addFlag) {
-//                            showToast("保存成功");
-//                            setResult(2);
-//                            finish();
-//                        } else {
-//                            showToast("保存失败");
-//                        }
-                    } else {
-                        showToast("填写内容不能为空");
-                    }
+            // 向数据库中添加内容
+            if (id != null) {
+                if (noteContent.length() > 0) {
+                    httpUpdate(notepadBean);
+                } else {
+                    errorToast("修改内容不能为空");
                 }
-                db.close();
-                break;
+            } else { // 添加记录界面的保存操作
+                // 向数据库中添加数据
+                if (noteContent.length() > 0) {
+                    httpAdd(notepadBean);
+                } else {
+                    errorToast("填写内容不能为空");
+                }
+            }
+            // db.close();
+            break;
         }
     }
 
-
-    //增加
-    public void httpAdd(NotepadBean notepadBean) {
-        Gson gson = new Gson();
-        String json = gson.toJson(notepadBean);
-
-        OkHttpClient client = new OkHttpClient();
-        RequestBody body = RequestBody.create(JSON, json);
-
-        Request request = new Request.Builder()
-                .url("http://121.199.44.171:8585/add")
-                .post(body)
-                .addHeader("content-type", "application/json")
-                .build();
-
-        Call call = client.newCall(request);
-
-        //andriod不能使用同步调用
-        // 开启异步线程访问网络
-        call.enqueue(new Callback() {
-            @Override
-            public void onResponse(Call call, Response response) throws IOException {
-                String res = response.body().string();
-
-//                    if (res.equals("true")) {
-//                        addFlag = true;
-//                    } else {
-//                        addFlag = false;
-//                    }
-//                   //此处似乎需要消息传递 主线程才能拿到值，
-//                    System.out.println("子线程修改的" + addFlag);
-            }
-
-            @Override
-            public void onFailure(Call call, IOException e) {
-
-            }
-        });
+    // 增加
+    public void httpAdd(NotepadBean req) {
+        httpAddOrUpdate("add", req);
     }
 
-    //更新
-    public void httpUpdate(NotepadBean notepadBean) {
+    // 更新
+    public void httpUpdate(NotepadBean req) {
+        httpAddOrUpdate("update", req);
+    }
 
-        Gson gson = new Gson();
-        String json = gson.toJson(notepadBean);
+    private void httpAddOrUpdate(String action, NotepadBean req) {
+        Call call = new OkHttpClient().newCall(HttpUtils.postRequestBuilder(action, req));
 
-        OkHttpClient client = new OkHttpClient();
-        RequestBody body = RequestBody.create(JSON, json);
-
-        Request request = new Request.Builder()
-                .url("http://121.199.44.171:8585/update")
-                .post(body)
-                .addHeader("content-type", "application/json")
-                .build();
-
-        Call call = client.newCall(request);
-
-        //andriod不能使用同步调用
+        // andriod不能使用同步调用
         // 开启异步线程访问网络
         call.enqueue(new Callback() {
             @Override
             public void onResponse(Call call, Response response) throws IOException {
+                if (!response.isSuccessful()) {
+                    // 错误处理
+                    showToast(action, "失败");
+                    return;
+                }
+
+                showToast(action, "成功");
+                setResult(2);
+                finish();
+
                 String res = response.body().string();
 
             }
@@ -224,9 +162,11 @@ public class RecordActivity extends AppCompatActivity implements View.OnClickLis
         });
     }
 
+    public void showToast(String action, String message) {
+        Toast.makeText(RecordActivity.this, String.format("%s %s", action, message), Toast.LENGTH_SHORT).show();
+    }
 
-    public void showToast(String message) {
+    public void errorToast(String message) {
         Toast.makeText(RecordActivity.this, message, Toast.LENGTH_SHORT).show();
     }
-
 }

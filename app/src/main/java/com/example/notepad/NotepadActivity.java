@@ -48,20 +48,18 @@ import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 
-
 public class NotepadActivity extends AppCompatActivity {
     ListView listView;
     List<NotepadBean> list;
     SQLiteHelper mSQLiteHelper;
     NotepadAdapter adapter;
     SQLiteDatabase db;
-    public static final MediaType JSON
-            = MediaType.get("text/plain; charset=utf-8");
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_notepad);
-        //用于显示记录的列表
+        // 用于显示记录的列表
         listView = (ListView) findViewById(R.id.listview);
         ImageView add = (ImageView) findViewById(R.id.add);
         add.setOnClickListener(new View.OnClickListener() {
@@ -75,7 +73,7 @@ public class NotepadActivity extends AppCompatActivity {
     }
 
     protected void initData() {
-        mSQLiteHelper = new SQLiteHelper(this); //创建数据库
+        mSQLiteHelper = new SQLiteHelper(this); // 创建数据库
         httpQuery();
         listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
@@ -84,9 +82,9 @@ public class NotepadActivity extends AppCompatActivity {
                 Intent intent = new Intent(NotepadActivity.this, com.example.notepad.RecordActivity.class);
                 intent.putExtra("id", notepadBean.getId());
                 intent.putExtra("time", notepadBean.getNotepadTime());
-                //记录的内容
+                // 记录的内容
                 intent.putExtra("content", notepadBean.getNotepadContent());
-                //跳转到修改记录页面
+                // 跳转到修改记录页面
                 NotepadActivity.this.startActivityForResult(intent, 1);
             }
         });
@@ -95,25 +93,20 @@ public class NotepadActivity extends AppCompatActivity {
             public boolean onItemLongClick(AdapterView<?> parent, View view, int position, long id) {
                 db = mSQLiteHelper.getWritableDatabase();
                 AlertDialog dialog;
-                AlertDialog.Builder builder = new AlertDialog.Builder(NotepadActivity.this)
-                        .setMessage("是否删除此记录？")
+                AlertDialog.Builder builder = new AlertDialog.Builder(NotepadActivity.this).setMessage("是否删除此记录？")
                         .setPositiveButton("确定", new DialogInterface.OnClickListener() {
                             @Override
                             public void onClick(DialogInterface dialog, int which) {
                                 NotepadBean notepadBean = list.get(position);
-//                                if (mSQLiteHelper.deleteData(notepadBean.getId(), db)) {
-                                    httpdelete(notepadBean.getId());
-                                    list.remove(position);//删除对应的Item
-                                    adapter.notifyDataSetChanged();//更新记事本界面
-                                    Toast.makeText(NotepadActivity.this, "删除成功", Toast.LENGTH_SHORT).show();
-//                                    db.close();
-//                                }
+                                // if (mSQLiteHelper.deleteData(notepadBean.getId(), db)) {
+                                httpDelete(notepadBean.getId());
+                                // db.close();
+                                // }
                             }
-                        })
-                        .setNegativeButton("取消", new DialogInterface.OnClickListener() {
+                        }).setNegativeButton("取消", new DialogInterface.OnClickListener() {
                             @Override
                             public void onClick(DialogInterface dialog, int which) {
-                                dialog.dismiss();//关闭对话框
+                                dialog.dismiss();// 关闭对话框
                             }
                         });
 
@@ -125,36 +118,28 @@ public class NotepadActivity extends AppCompatActivity {
         });
     }
 
+    // 删除
+    public void httpDelete(String id) {
+        NotepadBean req = new NotepadBean();
+        req.setId(id);
 
-    //删除
-    public void httpdelete(String id) {
-//        Gson gson = new Gson();
-//        String json = gson.toJson(id);
+        Call call = new OkHttpClient().newCall(HttpUtils.postRequestBuilder("delete", req));
 
-        OkHttpClient client = new OkHttpClient();
-        RequestBody body = RequestBody.create(JSON, id);
-
-        Request request = new Request.Builder()
-                .url("http://121.199.44.171:8585/delete")
-                .post(body)
-                .addHeader("content-type", "text/plain")
-                .build();
-
-        Call call = client.newCall(request);
-
-        //andriod不能使用同步调用
+        // andriod不能使用同步调用
         // 开启异步线程访问网络
         call.enqueue(new Callback() {
             @Override
             public void onResponse(Call call, Response response) throws IOException {
-                String res = response.body().string();
+                if (!response.isSuccessful()) {
+                    // 错误处理
+                    Toast.makeText(NotepadActivity.this, "删除失败", Toast.LENGTH_SHORT).show();
+                    return;
+                }
 
-//                    if (res.equals("true")) {
-//                        addFlag = true;
-//                    } else {
-//                        addFlag = false;
-//                    }
-//                    System.out.println("子线程修改的" + addFlag);
+                String res = response.body().string();
+                list.remove(position);// 删除对应的Item
+                adapter.setList(list);
+                Toast.makeText(NotepadActivity.this, "删除成功", Toast.LENGTH_SHORT).show();
             }
 
             @Override
@@ -164,33 +149,34 @@ public class NotepadActivity extends AppCompatActivity {
         });
     }
 
-    //查询
+    // 查询
     public void httpQuery() {
-        adapter = new NotepadAdapter(this,list);
+        adapter = new NotepadAdapter(this, list);
         listView.setAdapter(adapter);
 
-        OkHttpClient client = new OkHttpClient();
-        Request request = new Request.Builder().url("http://121.199.44.171:8585/getAll").build();
+        Call call = new OkHttpClient().newCall(HttpUtils.getRequestBuilder("getAll"));
 
-        Call call = client.newCall(request);
-
-        //andriod不能使用同步调用
+        // andriod不能使用同步调用
         // 开启异步线程访问网络
         call.enqueue(new Callback() {
             @Override
             public void onResponse(Call call, Response response) throws IOException {
-                //如果list有内容先清空
-                if (list != null){
+                // 如果list有内容先清空
+                if (list != null) {
                     list.clear();
                 }
-                //获取响应值
+                if (!response.isSuccessful()) {
+                    // 错误处理
+                    Toast.makeText(NotepadActivity.this, "查询失败", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                // 获取响应值
                 String res = response.body().string();
-                //解析res
+                // 解析res
                 Gson gson = new Gson();
                 list = gson.fromJson(res, new TypeToken<List<NotepadBean>>() {
                 }.getType());
-                //展示列表
-//                showQueryData(list);
+                // 展示列表
                 adapter.setList(list);
             }
 
@@ -199,14 +185,6 @@ public class NotepadActivity extends AppCompatActivity {
 
             }
         });
-    }
-
-
-
-
-    private void showQueryData(List<NotepadBean> list) {
-        adapter = new NotepadAdapter(this, list);
-        listView.setAdapter(adapter);
     }
 
     @Override
