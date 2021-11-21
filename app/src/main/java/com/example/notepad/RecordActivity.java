@@ -10,34 +10,22 @@ import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
-
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.example.notepad.adapter.NotepadAdapter;
 import com.example.notepad.bean.NotepadBean;
 import com.example.notepad.database.SQLiteHelper;
 import com.example.notepad.utils.DBUtils;
+import com.example.notepad.utils.HttpUtils;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
-import org.json.JSONArray;
-import org.json.JSONObject;
-
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import okhttp3.Call;
 import okhttp3.Callback;
-import okhttp3.FormBody;
-import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.RequestBody;
 import okhttp3.Response;
-import okio.BufferedSink;
 
 public class RecordActivity extends AppCompatActivity implements View.OnClickListener {
 
@@ -50,6 +38,7 @@ public class RecordActivity extends AppCompatActivity implements View.OnClickLis
     TextView noteName;
     String id;
     SQLiteDatabase db;
+    RecordActivity.MHandler mHandler;
     static Boolean addFlag;
 
     @Override
@@ -66,6 +55,7 @@ public class RecordActivity extends AppCompatActivity implements View.OnClickLis
         note_back.setOnClickListener(this);
         delete.setOnClickListener(this);
         note_save.setOnClickListener(this);
+        mHandler = new RecordActivity.MHandler();
         initData();
     }
 
@@ -108,14 +98,14 @@ public class RecordActivity extends AppCompatActivity implements View.OnClickLis
                 if (noteContent.length() > 0) {
                     httpUpdate(notepadBean);
                 } else {
-                    errorToast("修改内容不能为空");
+                    showToast("修改内容不能为空");
                 }
             } else { // 添加记录界面的保存操作
                 // 向数据库中添加数据
                 if (noteContent.length() > 0) {
                     httpAdd(notepadBean);
                 } else {
-                    errorToast("填写内容不能为空");
+                    showToast("填写内容不能为空");
                 }
             }
             // db.close();
@@ -143,16 +133,26 @@ public class RecordActivity extends AppCompatActivity implements View.OnClickLis
             public void onResponse(Call call, Response response) throws IOException {
                 if (!response.isSuccessful()) {
                     // 错误处理
-                    showToast(action, "失败");
+                    showToast("更新失败");
                     return;
                 }
 
-                showToast(action, "成功");
-                setResult(2);
-                finish();
+                // 线程内不能直接操作主线程的view，需要借助MQ
+                Message msg = new Message();
+                msg.obj = response.body().string();
 
-                String res = response.body().string();
+                switch (action) {
+                    case "add":
+                        msg.what = HttpUtils.MSG_CREATE_OK;
+                        msg.obj = req;
+                        break;
+                    case "update":
+                        msg.what = HttpUtils.MSG_UPDATE_OK;
+                        msg.obj = req;
+                        break;
+                }
 
+                mHandler.sendMessage(msg);
             }
 
             @Override
@@ -162,11 +162,29 @@ public class RecordActivity extends AppCompatActivity implements View.OnClickLis
         });
     }
 
-    public void showToast(String action, String message) {
-        Toast.makeText(RecordActivity.this, String.format("%s %s", action, message), Toast.LENGTH_SHORT).show();
+    public void showToast(String message) {
+        Toast.makeText(RecordActivity.this, message, Toast.LENGTH_SHORT).show();
     }
 
-    public void errorToast(String message) {
-        Toast.makeText(RecordActivity.this, message, Toast.LENGTH_SHORT).show();
+    /**
+     * 事件捕获
+     */
+    class MHandler extends Handler {
+        @Override
+        public void dispatchMessage(Message msg) {
+            super.dispatchMessage(msg);
+            switch (msg.what) {
+                case HttpUtils.MSG_CREATE_OK:
+                case HttpUtils.MSG_UPDATE_OK:
+                    if (msg.obj != null) {
+                        showToast("更新成功");
+                        setResult(2);
+                        finish();
+                    }
+                    break;
+                default:
+                break;
+            }
+        }
     }
 }
