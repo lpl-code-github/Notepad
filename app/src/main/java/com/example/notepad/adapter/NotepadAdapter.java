@@ -14,13 +14,12 @@ import java.util.List;
 
 public class NotepadAdapter extends BaseAdapter {
 
-    private LayoutInflater layoutInflater;
+    private Context context;
     private List<NotepadBean> list;
 
 
-    public NotepadAdapter(Context context,List<NotepadBean> list){
-        this.layoutInflater = LayoutInflater.from(context);
-        this.list = list;
+    public NotepadAdapter(Context context){
+        this.context = context;
     }
 
     public void setList(List<NotepadBean> list) {
@@ -28,14 +27,13 @@ public class NotepadAdapter extends BaseAdapter {
         notifyDataSetChanged();
     }
 
-
     @Override
     public int getCount() {
         return list == null ? 0 :list.size();
     }
 
     @Override
-    public Object getItem(int position) {
+    public NotepadBean getItem(int position) {
         return list.get(position);
     }
 
@@ -48,13 +46,13 @@ public class NotepadAdapter extends BaseAdapter {
     public View getView(int position, View convertView, ViewGroup parent) {
         ViewHolder viewHolder;
         if(convertView == null){
-            convertView = layoutInflater.inflate(R.layout.notepd_item_layout,null);
+            convertView = LayoutInflater.from(context).inflate(R.layout.notepd_item_layout,null);
             viewHolder  = new ViewHolder(convertView);
             convertView.setTag(viewHolder);
         }else {
             viewHolder=(ViewHolder) convertView.getTag();
         }
-        NotepadBean noteInfo = (NotepadBean) getItem(position);
+        NotepadBean noteInfo = getItem(position);
         viewHolder.tvNoteoadContent.setText(noteInfo.getNotepadContent());
         viewHolder.tcNotepadTime.setText(noteInfo.getNotepadTime());
 
