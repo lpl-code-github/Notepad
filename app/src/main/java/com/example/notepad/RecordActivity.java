@@ -1,7 +1,6 @@
 package com.example.notepad;
 
 import android.content.Intent;
-import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
@@ -12,8 +11,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import com.example.notepad.bean.NotepadBean;
-import com.example.notepad.database.SQLiteHelper;
-import com.example.notepad.utils.DBUtils;
+import com.example.notepad.utils.FormatUtils;
 import com.example.notepad.utils.HttpUtils;
 import java.io.IOException;
 import okhttp3.Call;
@@ -28,7 +26,6 @@ public class RecordActivity extends AppCompatActivity implements View.OnClickLis
     EditText content;
     ImageView delete;
     ImageView note_save;
-    SQLiteHelper mSQLiteHelper;
     TextView noteName;
     String id;
     RecordActivity.MHandler mHandler;
@@ -52,7 +49,6 @@ public class RecordActivity extends AppCompatActivity implements View.OnClickLis
     }
 
     protected void initData() {
-        mSQLiteHelper = new SQLiteHelper(this);
         noteName.setText("添加记录");
 
         Intent intent = getIntent();
@@ -77,13 +73,12 @@ public class RecordActivity extends AppCompatActivity implements View.OnClickLis
                 content.setText("");
                 break;
             case R.id.note_save:
-                // db = mSQLiteHelper.getWritableDatabase();
                 // 获取输入内容
                 String noteContent = content.getText().toString().trim();
                 NotepadBean notepadBean = new NotepadBean();
                 notepadBean.setId(id);
                 notepadBean.setNotepadContent(noteContent);
-                notepadBean.setNotepadTime(DBUtils.getTime());
+                notepadBean.setNotepadTime(FormatUtils.getTime());
 
                 // 向数据库中添加内容
                 if (id != null) {
@@ -93,14 +88,12 @@ public class RecordActivity extends AppCompatActivity implements View.OnClickLis
                         showToast("修改内容不能为空");
                     }
                 } else { // 添加记录界面的保存操作
-                    // 向数据库中添加数据
                     if (noteContent.length() > 0) {
                         httpAdd(notepadBean);
                     } else {
                         showToast("填写内容不能为空");
                     }
                 }
-                // db.close();
                 break;
         }
     }
