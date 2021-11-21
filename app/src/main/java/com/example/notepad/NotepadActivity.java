@@ -13,20 +13,15 @@ import android.widget.ListView;
 import android.widget.Toast;
 import android.os.Handler;
 import android.os.Message;
-
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
-
 import com.example.notepad.adapter.NotepadAdapter;
 import com.example.notepad.bean.NotepadBean;
-import com.example.notepad.database.SQLiteHelper;
 import com.example.notepad.utils.HttpUtils;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-
 import java.io.IOException;
 import java.util.List;
-
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.OkHttpClient;
@@ -34,10 +29,7 @@ import okhttp3.Response;
 
 public class NotepadActivity extends AppCompatActivity {
     ListView listView;
-    //List<NotepadBean> list;
-    SQLiteHelper mSQLiteHelper;
     NotepadAdapter adapter;
-    SQLiteDatabase db;
     MHandler mHandler;
 
     @Override
@@ -61,7 +53,6 @@ public class NotepadActivity extends AppCompatActivity {
     }
 
     protected void initData() {
-        //mSQLiteHelper = new SQLiteHelper(this); // 创建数据库
         httpQuery();
         listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
@@ -79,17 +70,13 @@ public class NotepadActivity extends AppCompatActivity {
         listView.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
             @Override
             public boolean onItemLongClick(AdapterView<?> parent, View view, int position, long id) {
-                //db = mSQLiteHelper.getWritableDatabase();
                 AlertDialog dialog;
                 AlertDialog.Builder builder = new AlertDialog.Builder(NotepadActivity.this).setMessage("是否删除此记录？")
                         .setPositiveButton("确定", new DialogInterface.OnClickListener() {
                             @Override
                             public void onClick(DialogInterface dialog, int which) {
                                 NotepadBean notepadBean = adapter.getItem(position);
-                                // if (mSQLiteHelper.deleteData(notepadBean.getId(), db)) {
                                 httpDelete(notepadBean.getId(), position);
-                                // db.close();
-                                // }
                             }
                         }).setNegativeButton("取消", new DialogInterface.OnClickListener() {
                             @Override
